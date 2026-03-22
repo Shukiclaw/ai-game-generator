@@ -46,7 +46,7 @@ interface GameRendererProps {
 export default function GameRenderer({ gameSpec, onExit }: GameRendererProps) {
   const [gameState, setGameState] = useState<GameState>(gameSpec.initialState);
   const [shuffledCards, setShuffledCards] = useState<any[]>([]);
-  const [particles, setParticles] = useState<Array<{ id: string; x: number; y: number; type: string }>>([]);
+  const [particles, setParticles] = useState<Array<{ id: string; x: number; y: number; type: "explosion" | "sparkle" | "smoke" | "hearts" | "stars" }>>([]);
   const autoClickerRef = useRef<NodeJS.Timeout | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -138,7 +138,7 @@ export default function GameRenderer({ gameSpec, onExit }: GameRendererProps) {
           if (firstCard?.value === secondCard?.value) {
             // Match found
             setShuffledCards(cards => 
-              cards.map((c, i) =
+              cards.map((c, i) =>
                 i === first || i === second ? { ...c, isMatched: true } : c
               )
             );
@@ -151,8 +151,8 @@ export default function GameRenderer({ gameSpec, onExit }: GameRendererProps) {
             }));
           } else {
             // No match - flip back
-            setShuffledCards(cards =
-              cards.map((c, i) =
+            setShuffledCards(cards =>
+              cards.map((c, i) =>
                 i === first || i === second ? { ...c, isFlipped: false } : c
               )
             );
@@ -219,7 +219,7 @@ export default function GameRenderer({ gameSpec, onExit }: GameRendererProps) {
       const upgrade = prev.upgrades?.find((u: any) => u.id === upgradeId);
       if (!upgrade || prev.score < upgrade.cost) return prev;
 
-      const newUpgrades = prev.upgrades.map((u: any) =
+      const newUpgrades = prev.upgrades.map((u: any) =>
         u.id === upgradeId 
           ? { ...u, owned: (u.owned || 0) + 1, cost: Math.floor(u.cost * 1.15) }
           : u
