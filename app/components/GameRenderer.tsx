@@ -13,21 +13,20 @@ import {
   Clicker,
   Upgrade,
   GameOver,
+  Entity,
+  Projectile,
+  Collectible,
+  Obstacle,
+  HealthBar,
+  ProgressBar,
+  AnimatedSprite,
+  PhysicsBody,
+  Draggable,
+  ParticleEffect,
+  Joystick,
+  PowerUp,
+  GameContainer,
 } from "./GameComponents";
-
-// Component registry for json-render
-const componentRegistry = {
-  Card: GameCard,
-  Button: GameButton,
-  Grid: GameGrid,
-  ScoreBoard,
-  Timer,
-  QuestionCard,
-  AnswerOption,
-  Clicker,
-  Upgrade,
-  GameOver,
-};
 
 // Shuffle array helper
 function shuffleArray<T>(array: T[]): T[] {
@@ -47,6 +46,7 @@ interface GameRendererProps {
 export default function GameRenderer({ gameSpec, onExit }: GameRendererProps) {
   const [gameState, setGameState] = useState<GameState>(gameSpec.initialState);
   const [shuffledCards, setShuffledCards] = useState<any[]>([]);
+  const [particles, setParticles] = useState<Array<{ id: string; x: number; y: number; type: string }>>([]);
   const autoClickerRef = useRef<NodeJS.Timeout | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -138,7 +138,7 @@ export default function GameRenderer({ gameSpec, onExit }: GameRendererProps) {
           if (firstCard?.value === secondCard?.value) {
             // Match found
             setShuffledCards(cards => 
-              cards.map((c, i) =>
+              cards.map((c, i) =
                 i === first || i === second ? { ...c, isMatched: true } : c
               )
             );
@@ -151,8 +151,8 @@ export default function GameRenderer({ gameSpec, onExit }: GameRendererProps) {
             }));
           } else {
             // No match - flip back
-            setShuffledCards(cards =>
-              cards.map((c, i) =>
+            setShuffledCards(cards =
+              cards.map((c, i) =
                 i === first || i === second ? { ...c, isFlipped: false } : c
               )
             );
@@ -219,7 +219,7 @@ export default function GameRenderer({ gameSpec, onExit }: GameRendererProps) {
       const upgrade = prev.upgrades?.find((u: any) => u.id === upgradeId);
       if (!upgrade || prev.score < upgrade.cost) return prev;
 
-      const newUpgrades = prev.upgrades.map((u: any) =>
+      const newUpgrades = prev.upgrades.map((u: any) =
         u.id === upgradeId 
           ? { ...u, owned: (u.owned || 0) + 1, cost: Math.floor(u.cost * 1.15) }
           : u
@@ -236,6 +236,57 @@ export default function GameRenderer({ gameSpec, onExit }: GameRendererProps) {
         autoClicks,
       };
     });
+  }, []);
+
+  // Shooter game handlers
+  const handleEntityClick = useCallback((entityId: string) => {
+    // Spawn particle effect
+    const entity = gameState.enemies?.find((e: any) => e.id === entityId);
+    if (entity) {
+      setParticles(prev => [...prev, { id: `particle-${Date.now()}`, x: entity.x, y: entity.y, type: "explosion" }]);
+      setTimeout(() => {
+        setParticles(prev => prev.filter(p => !p.id.startsWith(`particle-${Date.now()}`)));
+      }, 1000);
+    }
+  }, [gameState.enemies]);
+
+  const handleCollectibleCollect = useCallback((collectibleId: string) => {
+    setGameState(prev => ({
+      ...prev,
+      score: prev.score + 50,
+      coinsCollected: (prev.coinsCollected || 0) + 1,
+    }));
+  }, []);
+
+  // Draggable handlers
+  const handleDragStart = useCallback((id: string) => {
+    // Track drag start
+  }, []);
+
+  const handleDragEnd = useCallback((id: string, x: number, y: number) => {
+    setGameState(prev => ({
+      ...prev,
+      moves: (prev.moves || 0) + 1,
+    }));
+  }, []);
+
+  // Joystick handler
+  const handleJoystickMove = useCallback((x: number, y: number) => {
+    // Update player position based on joystick input
+    setGameState(prev => ({
+      ...prev,
+      playerVelocityX: x * 5,
+      playerVelocityY: y * 5,
+    }));
+  }, []);
+
+  // PowerUp handler
+  const handlePowerUpActivate = useCallback((type: string) => {
+    setGameState(prev => ({
+      ...prev,
+      activePowerUp: type,
+      powerUpTimeLeft: 5,
+    }));
   }, []);
 
   // Reset game
@@ -256,6 +307,7 @@ export default function GameRenderer({ gameSpec, onExit }: GameRendererProps) {
         : [];
       setShuffledCards(shuffleArray(cards));
     }
+    setParticles([]);
   }, [gameSpec]);
 
   // Render component based on type
@@ -402,6 +454,206 @@ export default function GameRenderer({ gameSpec, onExit }: GameRendererProps) {
           />
         );
 
+      // NEW COMPONENTS
+      case "Entity":
+        return (
+          <Entity
+            key={index}
+            x={props.x ?? gameState.playerX ?? 0}
+            y={props.y ?? gameState.playerY ?? 0}
+            width={props.width}
+            height={props.height}
+            emoji={props.emoji}
+            color={props.color}
+            health={props.health}
+            maxHealth={props.maxHealth}
+            isPlayer={props.isPlayer}
+            onClick={props.onClick ? () => handleEntityClick(props.id) : undefined}
+          />
+        );
+
+      case "Projectile":
+        return (
+          <Projectile
+            key={index}
+            x={props.x}
+            y={props.y}
+            direction={props.direction}
+            emoji={props.emoji}
+            color={props.color}
+            size={props.size}
+            trail={props.trail}
+          />
+        );
+
+      case "Collectible":
+        return (
+          <Collectible
+            key={index}
+            x={props.x}
+            y={props.y}
+            type={props.type}
+            emoji={props.emoji}
+            value={props.value}
+            onCollect={props.onCollect ? () => handleCollectibleCollect(props.id) : undefined}
+            isCollected={gameState.collected?.includes(props.id)}
+            animate={props.animate}
+          />
+        );
+
+      case "Obstacle":
+        return (
+          <Obstacle
+            key={index}
+            x={props.x}
+            y={props.y}
+            width={props.width}
+            height={props.height}
+            type={props.type}
+            emoji={props.emoji}
+            color={props.color}
+            damage={props.damage}
+            isMoving={props.isMoving}
+          />
+        );
+
+      case "HealthBar":
+        return (
+          <HealthBar
+            key={index}
+            current={props.current ?? gameState.playerHealth ?? gameState.health ?? 100}
+            max={props.max ?? gameState.playerMaxHealth ?? gameState.maxHealth ?? 100}
+            label={props.label}
+            showValue={props.showValue}
+            size={props.size}
+            variant={props.variant}
+          />
+        );
+
+      case "ProgressBar":
+        return (
+          <ProgressBar
+            key={index}
+            value={props.value ?? gameState.progress ?? gameState.coinsCollected ?? 0}
+            max={props.max ?? gameState.totalCoins ?? gameState.totalPieces ?? 100}
+            label={props.label}
+            showPercentage={props.showPercentage}
+            color={props.color}
+            size={props.size}
+          />
+        );
+
+      case "AnimatedSprite":
+        return (
+          <AnimatedSprite
+            key={index}
+            x={props.x}
+            y={props.y}
+            frames={props.frames}
+            frameRate={props.frameRate}
+            isPlaying={props.isPlaying}
+            size={props.size}
+            onAnimationEnd={props.onAnimationEnd}
+          />
+        );
+
+      case "PhysicsBody":
+        return (
+          <PhysicsBody
+            key={index}
+            x={props.x ?? gameState.playerX ?? 0}
+            y={props.y ?? gameState.playerY ?? 0}
+            vx={props.vx ?? gameState.playerVelocityX ?? 0}
+            vy={props.vy ?? gameState.playerVelocityY ?? 0}
+            width={props.width}
+            height={props.height}
+            mass={props.mass}
+            emoji={props.emoji}
+            color={props.color}
+            gravity={props.gravity}
+            friction={props.friction}
+            bounce={props.bounce}
+          />
+        );
+
+      case "Draggable":
+        return (
+          <Draggable
+            key={index}
+            id={props.id}
+            x={props.x}
+            y={props.y}
+            emoji={props.emoji}
+            label={props.label}
+            color={props.color}
+            size={props.size}
+            snapToGrid={props.snapToGrid}
+            gridSize={props.gridSize}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          />
+        );
+
+      case "ParticleEffect":
+        return (
+          <ParticleEffect
+            key={index}
+            x={props.x}
+            y={props.y}
+            type={props.type}
+            count={props.count}
+            color={props.color}
+            duration={props.duration}
+            onComplete={props.onComplete}
+          />
+        );
+
+      case "Joystick":
+        return (
+          <div key={index} className="flex justify-center py-4">
+            <Joystick
+              size={props.size}
+              onMove={handleJoystickMove}
+              onEnd={props.onEnd}
+            />
+          </div>
+        );
+
+      case "PowerUp":
+        return (
+          <PowerUp
+            key={index}
+            type={props.type}
+            emoji={props.emoji}
+            name={props.name}
+            duration={props.duration}
+            isActive={gameState.activePowerUp === props.type}
+            onActivate={() => handlePowerUpActivate(props.type)}
+          />
+        );
+
+      case "GameContainer":
+        return (
+          <GameContainer
+            key={index}
+            width={props.width}
+            height={props.height}
+          >
+            {Array.isArray(children) && children.map((child: any, i: number) => renderComponent(child, i))}
+            {/* Render active particles */}
+            {particles.map((p) => (
+              <ParticleEffect
+                key={p.id}
+                x={p.x}
+                y={p.y}
+                type={p.type}
+                count={12}
+                onComplete={() => setParticles(prev => prev.filter(part => part.id !== p.id))}
+              />
+            ))}
+          </GameContainer>
+        );
+
       case "GameOver":
         if (!gameState.gameOver) return null;
         return (
@@ -422,29 +674,56 @@ export default function GameRenderer({ gameSpec, onExit }: GameRendererProps) {
 
   return (
     <div 
-      className="min-h-screen p-4 md:p-8"
+      className="min-h-screen p-4 md:p-8 relative overflow-hidden"
       style={{ 
         backgroundColor: gameSpec.theme.colors.background,
         color: gameSpec.theme.colors.text,
         fontFamily: gameSpec.theme.font,
       }}
     >
-      <div className="max-w-4xl mx-auto">
+      {/* Animated grid background */}
+      <div 
+        className="fixed inset-0 opacity-10 pointer-events-none"
+        style={{
+          backgroundImage: `
+            linear-gradient(${gameSpec.theme.colors.primary}40 1px, transparent 1px),
+            linear-gradient(90deg, ${gameSpec.theme.colors.primary}40 1px, transparent 1px)
+          `,
+          backgroundSize: '50px 50px',
+        }}
+      />
+
+      <div className="max-w-5xl mx-auto relative z-10">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">{gameSpec.name}</h1>
-          <GameButton onClick={onExit} variant="secondary" size="sm">
+          <h1 
+            className="text-3xl md:text-4xl font-bold"
+            style={{ 
+              color: gameSpec.theme.colors.primary,
+              textShadow: `0 0 20px ${gameSpec.theme.colors.primary}60`,
+            }}
+          >
+            {gameSpec.name}
+          </h1>
+          <GameButton onClick={onExit} variant="neon" size="sm">
             ← Exit
           </GameButton>
         </div>
 
         {/* Game Description */}
-        <p className="text-slate-400 mb-6 text-center">{gameSpec.description}</p>
+        <p className="mb-6 text-center opacity-70">{gameSpec.description}</p>
 
         {/* Game Over Overlay */}
         {gameState.gameOver && (
-          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-            <div className="bg-slate-800 p-8 rounded-2xl shadow-2xl max-w-md w-full">
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 backdrop-blur-sm">
+            <div 
+              className="p-8 rounded-2xl shadow-2xl max-w-md w-full border"
+              style={{
+                backgroundColor: gameSpec.theme.colors.background,
+                borderColor: gameSpec.theme.colors.primary + "40",
+                boxShadow: `0 0 60px ${gameSpec.theme.colors.primary}30`,
+              }}
+            >
               <GameOver
                 score={gameState.score}
                 highScore={Math.max(gameState.highScore || 0, gameState.score)}
@@ -462,7 +741,7 @@ export default function GameRenderer({ gameSpec, onExit }: GameRendererProps) {
 
         {/* Clicker Stats */}
         {(gameSpec.name.toLowerCase().includes("clicker") || gameState.clickPower) && (
-          <div className="mt-8 text-center text-slate-400">
+          <div className="mt-8 text-center opacity-60">
             <p>Clicks: {gameState.clicks || 0}</p>
             {gameState.autoClicks > 0 && <p>Per second: {gameState.autoClicks.toFixed(1)}</p>}
           </div>
