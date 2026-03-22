@@ -1,0 +1,22 @@
+#!/bin/bash
+# Push script for AI Game Generator
+
+echo "🎮 AI Game Generator - GitHub Push Script"
+echo "=========================================="
+echo ""
+echo "To push this repo to GitHub, run one of these options:"
+echo ""
+echo "Option 1: If you have gh CLI installed:"
+echo "  gh repo create ai-game-generator --public --source=. --push"
+echo ""
+echo "Option 2: Manual push (after creating repo on GitHub):"
+echo "  git remote add origin https://github.com/YOUR_USERNAME/ai-game-generator.git"
+echo "  git push -u origin main"
+echo ""
+echo "Option 3: With GitHub token:"
+echo "  git remote add origin https://YOUR_TOKEN@github.com/YOUR_USERNAME/ai-game-generator.git"
+echo "  git push -u origin main"
+echo ""
+echo "Current repo location: $(pwd)"
+echo "Remote status:"
+git remote -v 2>/dev/null || echo "  No remotes configured"
