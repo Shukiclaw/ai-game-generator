@@ -177,7 +177,7 @@ export async function POST(request: NextRequest) {
         "X-Title": "AI Game Generator",
       },
       body: JSON.stringify({
-        model: "kimi-coding/k2p5",
+        model: "moonshotai/kimi-k2.5",
         messages: [
           { role: "system", content: GAME_GENERATOR_PROMPT },
           { role: "user", content: `Create a game: ${description}` }
